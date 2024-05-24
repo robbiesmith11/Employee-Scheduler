@@ -31,11 +31,13 @@ def GUI():
     References:
         - https://www.youtube.com/watch?v=SL-u_7hIqjA - logic of the main steps i used for my nsga-2 and technique of elitism by combining start and end population and sorting for best half
         - https://ai.stackexchange.com/questions/23637/what-are-most-commons-methods-to-measure-improvement-rate-in-a-meta-heuristic - learning rate functions and termination
+        - Streamlit State Management https://youtu.be/dPdB7zyGttg?si=K34MGvCvLun_l9iq  
+        - Ortools employee scheduling example https://developers.google.com/optimization/scheduling/employee_scheduling
+        - importance of creating a good initial population https://www.researchgate.net/publication/220862320_Initial_Population_for_Genetic_Algorithms_A_Metric_Approach#:~:text=This%20theoretical%20approach%20of%20analysis%20and%20measure%20of,its%20relation%20to%20the%20problem%20of%20premature%20convergence.
         - https://youtu.be/dPdB7zyGttg?si=K34MGvCvLun_l9iq - stop streamlit rerunning every time user selects new value from selectbox by using session state
     """
 
-    # should stay at 1000 as we only have the demand for that amount (future improvement ML prediction for needed demand)
-    workers = 1000
+    
     
     st.title("Employee Shift Scheduler")
     
@@ -102,13 +104,13 @@ def GUI():
         df_demand = pd.read_csv(demand)
         st.write(df_demand)
     
-    # can customise to add additional hour lengths of shifts 
+
     st.header("Parameters")
 
     st.subheader("Shift Lengths")
     st.markdown("""Number representing hours of potential hours of shifts to give to employees. Any not necessary shifts can be removed on click, if youd like a chance to give employees a day off keep 0 in""")
     default_shifts = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    shifts = st.multiselect('Select shift lengths:', default_shifts, default_shifts)
+    shifts = st.multiselect("Select shift lengths:", default_shifts, default_shifts)
     st.subheader("Population Size")
     st.markdown("""The population size is the number of different rota's to test for at once. A larger size would explore more solutions to find a better one but a smaller size would be quicker but may miss out on better solutions """)
     population_size = st.number_input("Population Size", min_value=1)
@@ -147,7 +149,6 @@ def GUI():
 
     if load and not st.session_state.finished_state:
         st.session_state.population, st.session_state.df = main(
-            workers,
             population_size,
             generation_size,
             mutation_rate,
@@ -171,7 +172,6 @@ def GUI():
                 st.session_state.finished_state = False
     
 def main(
-    workers,
     population_size,
     generation_size,
     mutation_rate,
@@ -188,8 +188,8 @@ def main(
     # cleaning data in columns before being used
     df_avail = df_avail.replace({"A": 1, "NW": 0, np.nan: 0})
     df_avail = df_avail.drop("Start time", axis=1)
-
-    df_num_workers = df_avail.iloc[:workers]
+    workers = len(df_avail.index)
+    df_num_workers = df_avail.iloc[:workers]   
 
     # creating a data strcuture to store relevant population data.
     # i started with python classes but because numpy runs faster using vectorisation and works with numba i opted to change
@@ -487,8 +487,7 @@ def crossover(population, size, df, df_demand, type_population):
         # selecting via tournement selection with a tournement size
         parent_one = selection(population, size)
         parent_two = selection(population, size)
-        # loop to ensure parent1 doesnt equal parent2 , i ran into problems where initial populations werent diverse so decieded to base it on
-        # fitness instead of id
+        # loop to ensure parent1 doesnt equal parent2 
         while np.array_equal(parent_one["fitness"], parent_two["fitness"]):
             parent_two = selection(population, size)
 
@@ -827,7 +826,6 @@ def visualise_fronts(population):
         if individual["front"] == 1:
             fitnesses.append(individual["fitness"])
             fronts.append(individual["front"])
-    #using reference from stack overflow to get the x and y values so they can be plotted
     x = [i[0] for i in fitnesses]
     y = [i[1] for i in fitnesses]
  
